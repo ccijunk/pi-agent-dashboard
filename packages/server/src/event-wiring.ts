@@ -987,6 +987,16 @@ export function wireEvents(deps: EventWiringDeps): void {
         }
       }
 
+      // Persist parent session ID from pi's JSONL `parentSession` header.
+      if (msg.parentSessionId !== undefined) {
+        sessionManager.update(sessionId, { parentSessionId: msg.parentSessionId });
+        if (msg.sessionFile) {
+          try {
+            mergeSessionMeta(msg.sessionFile, { parentSessionId: msg.parentSessionId });
+          } catch { /* best-effort */ }
+        }
+      }
+
       if (msg.sessionFile) {
         for (const other of sessionManager.listAll()) {
           if (other.id !== sessionId && other.sessionFile === msg.sessionFile) {

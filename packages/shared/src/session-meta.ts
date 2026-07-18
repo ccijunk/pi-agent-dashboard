@@ -71,6 +71,12 @@ export interface SessionMeta {
   gitWorktreeBase?: string;
 
   /**
+   * ID of the session this was forked from (pi's `parentSession` in JSONL
+   * header). Persisted so fork lineage survives cold start.
+   */
+  parentSessionId?: string;
+
+  /**
    * Worktree parentage persisted for cold-start session grouping. Mirrors
    * the grouping-relevant subset of `DashboardSession.gitWorktree`
    * (`mainPath` collapses the session under its parent repo via

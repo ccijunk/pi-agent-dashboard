@@ -7,13 +7,15 @@ import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiCog, mdiConsoleLine, 
 import { Icon } from "@mdi/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useFolderUrgencySort } from "../../hooks/useFolderUrgencySort.js";
-import { useInstallPrompt } from "../../hooks/useInstallPrompt.js";
-import { maybeAutoInitWorktreeOnSpawn } from "../../lib/git/auto-init-worktree.js";
-import { encodeFolderPath } from "../../lib/util/folder-encoding.js";
-import { t as i18nT } from "../../lib/i18n/i18n.js";
-import { useI18n } from "../../lib/i18n/i18n.js";
-import { buildFolderHomeUrl } from "../../lib/nav/route-builders.js";
+import { SessionViewToggle, useSessionViewMode } from "./SessionViewToggle.js";
+import { SessionGraph } from "./SessionGraph.js";
+import { useFolderUrgencySort } from "../hooks/useFolderUrgencySort.js";
+import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
+import { maybeAutoInitWorktreeOnSpawn } from "../lib/auto-init-worktree.js";
+import { encodeFolderPath } from "../lib/folder-encoding.js";
+import { t as i18nT } from "../lib/i18n";
+import { useI18n } from "../lib/i18n.js";
+import { buildFolderHomeUrl } from "../lib/route-builders.js";
 // TerminalCard removed — terminals now in TerminalsView
 import {
   getCollapsedGroups,
@@ -243,6 +245,7 @@ export function SessionList({ sessions, selectedId, onSelect, revealRequest, onS
   const [, navigate] = useLocation();
   const { messages, showToast, dismissToast } = useToast();
   const installPrompt = useInstallPrompt();
+  const [sessionViewMode, setSessionViewMode] = useSessionViewMode();
 
   // Scroll-to-selected-card wiring.
   // See change: auto-scroll-selected-session-card.
@@ -1295,6 +1298,7 @@ export function SessionList({ sessions, selectedId, onSelect, revealRequest, onS
           <div className="flex gap-1 items-center">
             <InstallButton canInstall={installPrompt.canInstall} isInstalled={installPrompt.isInstalled} prompt={installPrompt.prompt} />
             <TunnelButton showToast={showToast} />
+            <SessionViewToggle mode={sessionViewMode} onChange={setSessionViewMode} />
             {headerExtra}
             <button
               onClick={() => navigate("/settings")}
@@ -1369,7 +1373,13 @@ export function SessionList({ sessions, selectedId, onSelect, revealRequest, onS
         )}
       </div>
       <div ref={listRef} className="flex-1 overflow-y-auto">
-      {filteredSessions.length === 0 && pinnedGroups.length === 0 && (workspaces?.length ?? 0) === 0 ? (
+      {sessionViewMode === "graph" ? (
+        <SessionGraph
+          sessions={[...sessions.values()]}
+          selectedId={selectedId}
+          onSessionClick={(id) => onSelect(id)}
+        />
+      ) : filteredSessions.length === 0 && pinnedGroups.length === 0 && (workspaces?.length ?? 0) === 0 ? (
         <div className="p-4 text-sm text-[var(--text-tertiary)]">{t("sessionList.noActiveSessions", undefined, "No active sessions")}</div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={sameTypeClosestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>

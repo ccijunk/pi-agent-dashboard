@@ -69,6 +69,8 @@ export interface DashboardSession {
    * lockout. See change: add-auto-session-naming.
    */
   nameSource?: "auto" | "user";
+  /** ID of the session this was forked from (pi's `parentSession` in JSONL header). Absent for root sessions. */
+  parentSessionId?: string;
   source: SessionSource;
   status: SessionStatus;
   model?: string;

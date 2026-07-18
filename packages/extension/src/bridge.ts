@@ -2055,6 +2055,10 @@ function initBridge(pi: ExtensionAPI) {
     lastSessionFile = sessionFile;
     lastSessionDir = sessionDir;
 
+    // Resolve parent session ID from the session file header (pi's `parentSession` field).
+    // Primary: read parent file header → extract `id`. Fallback: parse filename.
+    const parentSessionId = resolveParentSessionId(sessionFile);
+
     // ── PromptBus setup ──
     // Create bus with dashboard connection wiring.
     // Replaces the old ui-proxy race pattern.
@@ -2378,6 +2382,7 @@ function initBridge(pi: ExtensionAPI) {
       thinkingLevel: initialThinkingLevel,
       sessionFile,
       sessionDir,
+      parentSessionId,
       firstMessage,
       eventCount,
       ...(dashboardSpawned ? { dashboardSpawned: true } : {}),
@@ -2747,4 +2752,41 @@ function initBridge(pi: ExtensionAPI) {
   };
 
   // Reload is handled by session_start which fires on /reload too
+}
+
+/**
+ * Resolve a pi session file's parent session ID.
+ * Primary: read parent JSONL header → extract `id`. Fallback: parse filename.
+ * Returns undefined if this session has no parent.
+ */
+function resolveParentSessionId(sessionFile?: string): string | undefined {
+  if (!sessionFile) return undefined;
+  try {
+    // Read THIS session file header to get parentSession path
+    const header = JSON.parse(fs.readFileSync(sessionFile, "utf-8").split("\n")[0]);
+    const parentPath: string | undefined = header.parentSession;
+    if (!parentPath) return undefined;
+
+    // Primary: read parent file header → extract `id`
+    try {
+      const parentHeader = JSON.parse(fs.readFileSync(parentPath, "utf-8").split("\n")[0]);
+      if (parentHeader.id) return parentHeader.id;
+    } catch {
+      // Parent file missing/unreadable — fall through to filename parse
+    }
+
+    // Fallback: parse filename (format: {timestamp}_{uuid}.jsonl or {uuid}.jsonl)
+    const basename = path.basename(parentPath, ".jsonl");
+    const lastUnderscore = basename.lastIndexOf("_");
+    if (lastUnderscore >= 0) {
+      const id = basename.slice(lastUnderscore + 1);
+      if (/^[0-9a-f-]+$/i.test(id)) return id;
+    }
+    // Filename itself might be a UUID
+    if (/^[0-9a-f-]+$/i.test(basename)) return basename;
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -19,9 +19,20 @@ function getSessionsDir(): string {
 /** Extract session ID (UUID) from a filename like `<ts>_<uuid>.jsonl` */
 function extractSessionId(filename: string): string | null {
   // Format: 2026-03-30T21-39-43-034Z_c7ab4be9-78d1-4764-8197-dbf74fea8bf4.jsonl
+  // OR (forked sessions): a7cd44ae-18b4-43f2-99f6-77e17244adf0.jsonl
+  // Pi creates forked sessions with UUID-only filenames (no timestamp prefix).
+  // The dashboard MUST pick these up or fork chains break — a child's parent
+  // vanishes from the session set and the lineage is lost.
+  // See change: add-session-tree-graph.
   const base = filename.replace(/\.jsonl$/, "").replace(/\.meta\.json$/, "");
   const underscoreIdx = base.indexOf("_");
-  if (underscoreIdx === -1) return null;
+  if (underscoreIdx === -1) {
+    // UUID-only filename — validate it looks like a UUID before accepting.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(base)) {
+      return base;
+    }
+    return null;
+  }
   return base.slice(underscoreIdx + 1);
 }
 
@@ -29,7 +40,7 @@ function extractSessionId(filename: string): string | null {
 function extractTimestamp(filename: string): number {
   const base = filename.replace(/\.jsonl$/, "").replace(/\.meta\.json$/, "");
   const underscoreIdx = base.indexOf("_");
-  if (underscoreIdx === -1) return Date.now();
+  if (underscoreIdx === -1) return NaN; // UUID-only (forked) — caller falls back to mtime
   // Convert dashes back to colons in time part: 21-39-43-034Z → 21:39:43.034Z
   const tsRaw = base.slice(0, underscoreIdx);
   // Format: 2026-03-30T21-39-43-034Z
@@ -102,6 +113,8 @@ function sessionFromMeta(
     // without a live bridge — the +Worktree button gate hides only on
     // `=== false`. See change: gate-session-worktree-button-on-git.
     isGitRepo: meta.isGitRepo,
+    // Restore parent session ID so fork lineage survives cold start.
+    parentSessionId: meta.parentSessionId,
     // Cache the worktree base ref from meta so a later git_info_update
     // can compose it into gitWorktree.base for browser payloads. Field
     // is server-internal storage on DashboardSession (the wire shape's
@@ -178,7 +191,14 @@ export function scanAllSessions(sessionsDir?: string): ScanResult {
 
       const sessionFile = join(cwdPath, jsonlFile);
       const sessionDir = cwdPath;
-      const startedAt = extractTimestamp(jsonlFile);
+      // Forked sessions have UUID-only filenames (no timestamp prefix) →
+      // extractTimestamp returns NaN. Fall back to the file mtime so the
+      // session card shows a sane time instead of "now".
+      // See change: add-session-tree-graph.
+      let startedAt = extractTimestamp(jsonlFile);
+      if (!startedAt || isNaN(startedAt)) {
+        startedAt = readJsonlMtime(sessionFile) ?? Date.now();
+      }
 
       // Try reading .meta.json
       const meta = readSessionMeta(sessionFile);
@@ -264,6 +284,34 @@ export function scanAllSessions(sessionsDir?: string): ScanResult {
       cacheUpdates++;
       sessions.push(sessionFromMeta(sessionId, sessionFile, sessionDir, newMeta, startedAt));
     }
+  }
+
+  // Second pass: resolve parentSessionId from JSONL headers.
+  // Mirrors pi's buildSessionTree: link child→parent by FILE PATH, and a
+  // session is a root if its parent path is NOT in the session set (missing
+  // parent → root, NOT a ghost). We resolve the parent path to an ID here so
+  // the client can build the fork tree from IDs alone.
+  // See change: add-session-tree-graph.
+  const sessionFileToId = new Map<string, string>();
+  for (const s of sessions) {
+    if (s.sessionFile) sessionFileToId.set(s.sessionFile, s.id);
+  }
+  for (const s of sessions) {
+    if (!s.sessionFile) continue;
+    try {
+      // Read the raw first line to get the `parentSession` field (pi's fork
+      // linkage). readJsonlHeaderSync doesn't expose parentSession, so parse
+      // the header line directly.
+      const rawFirst = readFileSync(s.sessionFile, "utf-8").split("\n")[0];
+      const rawHeader = JSON.parse(rawFirst);
+      const parentPath: string | undefined = rawHeader?.parentSession;
+      if (!parentPath) continue;
+      // Match pi: only link if the parent path is in the session set.
+      const parentId = sessionFileToId.get(parentPath);
+      if (parentId && parentId !== s.id) {
+        s.parentSessionId = parentId;
+      }
+    } catch { /* best-effort */ }
   }
 
   return { sessions, cacheUpdates };

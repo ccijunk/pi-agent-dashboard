@@ -42,6 +42,8 @@ export interface SessionRegisterMessage {
   thinkingLevel?: string;
   sessionFile?: string;
   sessionDir?: string;
+  /** ID of the session this was forked from (pi's `parentSession` in JSONL header). */
+  parentSessionId?: string;
   firstMessage?: string;
   /** True when this is a fresh session start (not a reconnection) */
   isNew?: boolean;
