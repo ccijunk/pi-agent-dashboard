@@ -81,6 +81,8 @@ export interface BrowserGateway {
   broadcastSessionAdded(session: any, opts?: { spawnRequestId?: string }): void;
   broadcastSessionUpdated(sessionId: string, updates: any): void;
   broadcastSessionRemoved(sessionId: string): void;
+  /** Hard-delete broadcast: drop the entry entirely (process + files gone). See change: add-session-delete-button. */
+  broadcastSessionDeleted(sessionId: string): void;
   sendToSubscribers(sessionId: string, msg: ServerToBrowserMessage): void;
   broadcastToAll(msg: ServerToBrowserMessage): void;
   /**
@@ -940,6 +942,10 @@ export function createBrowserGateway(
 
     broadcastSessionRemoved(sessionId: string) {
       broadcast({ type: "session_removed", sessionId });
+    },
+
+    broadcastSessionDeleted(sessionId: string) {
+      broadcast({ type: "session_deleted", sessionId });
     },
 
     broadcastSessionStateReset(sessionId: string) {

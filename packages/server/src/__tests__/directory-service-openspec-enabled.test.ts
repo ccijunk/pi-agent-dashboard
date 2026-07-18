@@ -97,6 +97,7 @@ function makeSessionMgr(sessions: DashboardSession[] = []): SessionManager {
     register: vi.fn(),
     restore: vi.fn(),
     unregister: vi.fn(),
+    remove: vi.fn(),
     update: vi.fn(),
     get: (id: string) => map.get(id),
     listActive: () => Array.from(map.values()).filter(s => s.status !== "ended"),

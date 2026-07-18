@@ -104,6 +104,18 @@ export interface SessionRemovedMessage {
   sessionId: string;
 }
 
+/**
+ * Hard-delete signal. The session's pi process (if alive), its `.jsonl`
+ * history file, and its `.meta.json` sidecar were all removed server-side.
+ * Clients MUST drop the entry from their session map entirely — unlike
+ * `session_removed` (which keeps an `ended` card), nothing remains.
+ * See change: add-session-delete-button.
+ */
+export interface SessionDeletedMessage {
+  type: "session_deleted";
+  sessionId: string;
+}
+
 export interface EventMessage {
   type: "event";
   sessionId: string;
@@ -803,6 +815,7 @@ export type ServerToBrowserMessage =
   | SessionAddedMessage
   | SessionUpdatedMessage
   | SessionRemovedMessage
+  | SessionDeletedMessage
   | EventMessage
   | EventReplayMessage
   | BrowserCommandsListMessage

@@ -103,6 +103,7 @@ function createMockSessionManager(sessions: DashboardSession[] = []): SessionMan
       const s = map.get(id);
       if (s) { s.status = "ended"; s.endedAt = Date.now(); }
     }),
+    remove: vi.fn((id) => { map.delete(id); }),
     update: vi.fn(),
     get: (id) => map.get(id),
     listActive: () => Array.from(map.values()).filter((s) => s.status !== "ended"),

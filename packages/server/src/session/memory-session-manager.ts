@@ -65,6 +65,8 @@ export interface SessionManager {
   /** Restore a previously persisted session (e.g. on startup). Does not trigger onChange. */
   restore(session: DashboardSession): void;
   unregister(sessionId: string): void;
+  /** Hard-delete: drop the entry entirely (no `ended` record). Fires `onChange` so persistence/sidecars react. See change: add-session-delete-button. */
+  remove(sessionId: string): void;
   update(sessionId: string, updates: Partial<DashboardSession>): void;
   get(sessionId: string): DashboardSession | undefined;
   listActive(): DashboardSession[];
@@ -157,6 +159,12 @@ export function createMemorySessionManager(): SessionManager {
         session.endedAt = Date.now();
         mgr.onChange?.(sessionId);
         mgr.onUnregister?.(sessionId);
+      }
+    },
+
+    remove(sessionId: string): void {
+      if (sessions.delete(sessionId)) {
+        mgr.onChange?.(sessionId);
       }
     },
 

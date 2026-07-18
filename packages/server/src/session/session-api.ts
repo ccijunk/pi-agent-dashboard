@@ -3,13 +3,14 @@
  * These expose WebSocket-only operations as HTTP endpoints
  * for use by skills, scripts, and external tooling.
  */
-import { existsSync } from "node:fs";
+import { existsSync, unlinkSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { SessionManager } from "./memory-session-manager.js";
 import type { PiGateway } from "../pi/pi-gateway.js";
 import type { BrowserGateway } from "../pairing/browser-gateway.js";
 import type { ApiResponse } from "@blackbelt-technology/pi-dashboard-shared/types.js";
-import { spawnPiSession } from "../spawn-process/process-manager.js";
+import { metaPath } from "@blackbelt-technology/pi-dashboard-shared/session-meta.js";
+import { spawnPiSession } from "./process-manager.js";
 import { loadConfig } from "@blackbelt-technology/pi-dashboard-shared/config.js";
 import type { PendingForkRegistry } from "../pending/pending-fork-registry.js";
 import type { PendingResumeIntentRegistry } from "../pending/pending-resume-intent-registry.js";
@@ -114,6 +115,49 @@ export function registerSessionApi(fastify: FastifyInstance, deps: SessionApiDep
       await browserGateway.headlessPidRegistry.killBySessionId(id);
       sessionManager.unregister(id);
       browserGateway.broadcastSessionRemoved(id);
+      return { success: true } satisfies ApiResponse;
+    },
+  );
+
+  // Best-effort removal of a session's persisted files. A missing file is
+  // fine (already gone); an unlink failure is logged but never fails the
+  // caller — the in-memory entry is the client's source of truth.
+  // See change: add-session-delete-button.
+  const deleteSessionFiles = (log: FastifyInstance["log"], sessionFile?: string): void => {
+    if (!sessionFile) return;
+    for (const p of [sessionFile, metaPath(sessionFile)]) {
+      try {
+        if (existsSync(p)) unlinkSync(p);
+      } catch (err) {
+        log.warn({ err, path: p }, "session delete: file removal failed");
+      }
+    }
+  };
+
+  // DELETE /api/session/:id — hard delete.
+  // Kills any live pi process, removes the `.jsonl` history + `.meta.json`
+  // sidecar from disk, drops the in-memory entry entirely, and broadcasts
+  // `session_deleted` so clients drop the card (vs `shutdown`, which keeps an
+  // ended record). See change: add-session-delete-button.
+  fastify.post<IdParams>(
+    "/api/session/:id/delete",
+    async (request, reply) => {
+      const { id } = request.params;
+      const result = getSessionOrFail(sessionManager, id);
+      if ("error" in result) {
+        reply.code(404);
+        return result.error;
+      }
+      // Stop any live pi process. The shutdown message is a no-op for an
+      // already-`ended` session; the headless-pid kill handles headless
+      // workers that have no WS bridge attached.
+      piGateway.sendToSession(id, { type: "shutdown", sessionId: id });
+      await browserGateway.headlessPidRegistry.killBySessionId(id);
+      // Remove the persisted record + history, then the in-memory entry.
+      deleteSessionFiles(request.log, result.session?.sessionFile);
+      sessionManager.remove(id);
+      // Tell clients — `session_deleted` drops the card from the map.
+      browserGateway.broadcastSessionDeleted(id);
       return { success: true } satisfies ApiResponse;
     },
   );

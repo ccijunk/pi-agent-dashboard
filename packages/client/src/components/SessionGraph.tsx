@@ -12,10 +12,11 @@
  */
 
 import type { DashboardSession } from "@blackbelt-technology/pi-dashboard-shared/types.js";
-import { mdiFullscreen, mdiFullscreenExit } from "@mdi/js";
+import { mdiFullscreen, mdiFullscreenExit, mdiTrashCanOutline } from "@mdi/js";
 import { Icon } from "@mdi/react";
 import React, { useMemo, useState } from "react";
 import { buildTreePrefix, buildWorkspaceGroupedTree, type SessionTreeNode } from "../lib/session-graph-builder.js";
+import { deleteSession } from "../lib/session-control-api.js";
 
 interface SessionGraphProps {
   sessions: DashboardSession[];
@@ -44,6 +45,21 @@ const TreeNode: React.FC<{
   const color = STATUS_COLOR[session.status] ?? "#6b7280";
   const ended = session.status === "ended";
   const selected = selectedId === session.id;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const label = sessionLabel(session);
+    if (!window.confirm(`Delete session "${label}"?\n\nThis kills the pi process (if running) and permanently removes its history file. This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteSession(session.id);
+      // Server broadcasts `session_deleted` → map drops the entry → re-render.
+    } catch (err) {
+      setDeleting(false);
+      window.alert(err instanceof Error ? err.message : "Failed to delete session");
+    }
+  };
 
   return (
     <div
@@ -70,6 +86,16 @@ const TreeNode: React.FC<{
         {sessionLabel(session)}
       </span>
       <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">{session.status}</span>
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={deleting}
+        className="p-1 rounded text-[var(--text-muted)] hover:text-red-500 hover:bg-[var(--bg-primary)] disabled:opacity-50 disabled:cursor-progress flex-shrink-0"
+        title={deleting ? "Deleting…" : "Delete session"}
+        aria-label="Delete session"
+      >
+        <Icon path={mdiTrashCanOutline} size={0.45} />
+      </button>
     </div>
   );
 };

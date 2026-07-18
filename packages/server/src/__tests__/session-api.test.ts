@@ -115,6 +115,23 @@ describe("Session Control REST API", () => {
     expect(server.sessionManager.get("shutdown-me")?.status).toBe("ended");
   });
 
+  // ── delete (hard) ────────────────────────────────────────────────
+
+  it("POST /api/session/:id/delete — 404 for unknown session", async () => {
+    const res = await postJson("/api/session/unknown/delete");
+    expect(res.status).toBe(404);
+  });
+
+  it("POST /api/session/:id/delete — removes the entry entirely (no ended record)", async () => {
+    registerSession("delete-me", { sessionFile: "/nonexistent/path/delete-me.jsonl" });
+    expect(server.sessionManager.get("delete-me")).toBeDefined();
+    const res = await postJson("/api/session/delete-me/delete");
+    expect(res.status).toBe(200);
+    expect((await res.json()).success).toBe(true);
+    // Hard delete: the entry is GONE, not marked `ended` (the shutdown path leaves an ended record).
+    expect(server.sessionManager.get("delete-me")).toBeUndefined();
+  });
+
   // ── rename ──────────────────────────────────────────────────────
 
   it("POST /api/session/:id/rename — 400 when name missing", async () => {

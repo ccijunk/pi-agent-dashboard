@@ -363,6 +363,18 @@ export function useMessageHandler(
         });
         break;
 
+      case "session_deleted":
+        // Hard-delete: drop the entry entirely (process + files gone). The
+        // App-level `/` redirect effect fires if this was the selected id.
+        // See change: add-session-delete-button.
+        setSessions((prev) => {
+          if (!prev.has(msg.sessionId)) return prev;
+          const next = new Map(prev);
+          next.delete(msg.sessionId);
+          return next;
+        });
+        break;
+
       case "session_state_reset":
         setSessionStates((prev) => {
           const next = new Map(prev);
