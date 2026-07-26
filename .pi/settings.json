@@ -1,7 +1,7 @@
 {
   "packages": [
     {
-      "source": "/Users/robson/Project/pi-agent-dashboard",
+      "source": "/home/laeq/code/harness/pi-agent-dashboard",
       "extensions": [
         "+packages/kb-extension/src/index.ts"
       ]
