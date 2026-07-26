@@ -4,8 +4,8 @@
  * add-session-delete-button.
  */
 import type { ApiResponse } from "@blackbelt-technology/pi-dashboard-shared/types.js";
-import { getApiBase } from "./api-context.js";
-import { fetchJsonResponse } from "./fetch-json.js";
+import { getApiBase } from "./api/api-context.js";
+import { fetchJsonResponse } from "./api/fetch-json.js";
 
 /**
  * Hard-delete a session: kill the pi process (if alive), remove its `.jsonl`

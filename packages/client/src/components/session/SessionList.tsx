@@ -7,15 +7,15 @@ import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiCog, mdiConsoleLine, 
 import { Icon } from "@mdi/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { SessionViewToggle, useSessionViewMode } from "./SessionViewToggle.js";
-import { SessionGraph } from "./SessionGraph.js";
-import { useFolderUrgencySort } from "../hooks/useFolderUrgencySort.js";
-import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
-import { maybeAutoInitWorktreeOnSpawn } from "../lib/auto-init-worktree.js";
-import { encodeFolderPath } from "../lib/folder-encoding.js";
-import { t as i18nT } from "../lib/i18n";
-import { useI18n } from "../lib/i18n.js";
-import { buildFolderHomeUrl } from "../lib/route-builders.js";
+import { SessionViewToggle, useSessionViewMode } from "../SessionViewToggle.js";
+import { SessionGraph } from "../SessionGraph.js";
+import { useFolderUrgencySort } from "../../hooks/useFolderUrgencySort.js";
+import { useInstallPrompt } from "../../hooks/useInstallPrompt.js";
+import { maybeAutoInitWorktreeOnSpawn } from "../../lib/git/auto-init-worktree.js";
+import { encodeFolderPath } from "../../lib/util/folder-encoding.js";
+import { t as i18nT } from "../../lib/i18n/i18n";
+import { useI18n } from "../../lib/i18n/i18n.js";
+import { buildFolderHomeUrl } from "../../lib/nav/route-builders.js";
 // TerminalCard removed — terminals now in TerminalsView
 import {
   getCollapsedGroups,

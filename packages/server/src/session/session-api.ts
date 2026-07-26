@@ -10,7 +10,7 @@ import type { PiGateway } from "../pi/pi-gateway.js";
 import type { BrowserGateway } from "../pairing/browser-gateway.js";
 import type { ApiResponse } from "@blackbelt-technology/pi-dashboard-shared/types.js";
 import { metaPath } from "@blackbelt-technology/pi-dashboard-shared/session-meta.js";
-import { spawnPiSession } from "./process-manager.js";
+import { spawnPiSession } from "../spawn-process/process-manager.js";
 import { loadConfig } from "@blackbelt-technology/pi-dashboard-shared/config.js";
 import type { PendingForkRegistry } from "../pending/pending-fork-registry.js";
 import type { PendingResumeIntentRegistry } from "../pending/pending-resume-intent-registry.js";
